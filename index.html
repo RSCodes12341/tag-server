@@ -423,7 +423,8 @@ function renderLobby(players){
     <div class="lobby" id="lobbyList">
       ${players.map(p=>`<div class="lobby-player"><div class="p-dot" style="background:${p.color}"></div><span>${p.name}</span><span style="margin-left:auto;font-size:10px;color:var(--dim)">P${p.idx+1}</span></div>`).join('')}
     </div>
-    <div style="font-size:10px;color:var(--dim);letter-spacing:1px;text-align:center">Any player can press Start when ready</div>
+    <div id="guestCfgInfo" style="font-size:11px;color:var(--yellow);letter-spacing:1px;text-align:center">Map: ${['City','Forest','Space'][cfg.map]}  |  ${cfg.duration}s</div>
+    <div style="font-size:10px;color:var(--dim);letter-spacing:1px;text-align:center">Host picks the map — waiting for them to start</div>
     <button class="btn primary" onclick="startOnlineGame()" ${players.length<2?'disabled':''}>Start Game →</button>`;
 }
 
@@ -449,7 +450,6 @@ function handleWS(msg){
   switch(msg.type){
     case 'created':
       myIdx=0; pendingRoomCode=msg.code;
-      // Show lobby with big code
       document.getElementById('actionArea').innerHTML=`
         <div class="field-label" style="text-align:center">Your Room Code — share with friends</div>
         <div class="code-big">${msg.code}</div>
@@ -457,7 +457,22 @@ function handleWS(msg){
         <div class="lobby" id="lobbyList">
           ${msg.room.players.map(p=>`<div class="lobby-player"><div class="p-dot" style="background:${p.color}"></div><span>${p.name}</span><span style="margin-left:auto;font-size:10px;color:var(--dim)">P${p.idx+1}</span></div>`).join('')}
         </div>
-        <div style="font-size:10px;color:var(--dim);letter-spacing:1px;text-align:center">Waiting for players… you can start once 2+ are in</div>
+        <div style="margin-top:4px">
+          <div class="field-label">Map</div>
+          <div class="seg-btns">
+            <button class="seg-btn ${cfg.map===0?'active':''}" onclick="setOnlineCfg('map',0,this)">City</button>
+            <button class="seg-btn ${cfg.map===1?'active':''}" onclick="setOnlineCfg('map',1,this)">Forest</button>
+            <button class="seg-btn ${cfg.map===2?'active':''}" onclick="setOnlineCfg('map',2,this)">Space</button>
+          </div>
+        </div>
+        <div>
+          <div class="field-label">Duration</div>
+          <div class="seg-btns">
+            <button class="seg-btn ${cfg.duration===60?'active':''}" onclick="setOnlineCfg('duration',60,this)">60s</button>
+            <button class="seg-btn ${cfg.duration===120?'active':''}" onclick="setOnlineCfg('duration',120,this)">120s</button>
+            <button class="seg-btn ${cfg.duration===180?'active':''}" onclick="setOnlineCfg('duration',180,this)">180s</button>
+          </div>
+        </div>
         <button class="btn primary" id="startBtn" onclick="startOnlineGame()" disabled>Start Game →</button>`;
       setStatus('','');
       break;
@@ -511,6 +526,9 @@ function handleWS(msg){
 
     case 'configUpdate':
       cfg=msg.config;
+      // Show guests what map/duration the host picked
+      const cfgInfo=document.getElementById('guestCfgInfo');
+      if(cfgInfo) cfgInfo.textContent=`Map: ${['City','Forest','Space'][cfg.map]}  |  ${cfg.duration}s`;
       break;
 
     case 'error':
@@ -536,6 +554,13 @@ function onlineAction(){
 
 function startOnlineGame(){
   wsSend({type:'start',duration:cfg.duration,map:cfg.map});
+}
+
+function setOnlineCfg(key,val,btn){
+  cfg[key]=val;
+  btn.closest('.seg-btns').querySelectorAll('.seg-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  wsSend({type:'config',duration:cfg.duration,map:cfg.map});
 }
 
 function sendInput(){
